@@ -45,6 +45,7 @@ struct doc_parser {
 	node_block* head;
 	node_block* current;
 	int line_number;
+	strbuf *linebuf;
 };
 
 typedef struct doc_parser doc_parser;
@@ -53,9 +54,13 @@ static doc_parser *new_doc_parser()
 {
 	doc_parser *parser = (doc_parser*)malloc(sizeof(doc_parser));
 	node_block *document = make_document();
+	strbuf line = GH_BUF_INIT;
+	cmark_strbuf_init(&line, 0);
+
 	parser->head = document;
 	parser->current = document;
 	parser->line_number = 0;
+	parser->linebuf = &line;
 	return parser;
 }
 
@@ -814,10 +819,12 @@ static void incorporate_line(strbuf *line, int line_number, node_block** curptr)
 
 static void process_line(doc_parser *parser, unsigned char *rawline)
 {
-	strbuf buf = GH_BUF_INIT;
-	strbuf *line = &buf;
 	parser->line_number++;
+	strbuf *line = parser->linebuf;
 	int line_number = parser->line_number;
+
+	// TODO can we avoid strlen here?  we're scanning for tabs
+	// anyway, why not look for newline?
 	utf8proc_detab(line, rawline, strlen((char *)rawline));
 
 	node_block* last_matched_container;
@@ -1151,13 +1158,15 @@ static void process_line(doc_parser *parser, unsigned char *rawline)
 
 		parser->current = container;
 	}
-	strbuf_free(line);
+	strbuf_clear(line);
+
 }
 
 static node_block *finish(doc_parser *parser)
 {
-	finalize(parser->head, parser->line_number);
+	finalize_document(parser->head, parser->line_number);
 	process_inlines(parser->head, parser->head->as.document.refmap);
+	strbuf_free(parser->linebuf);
 	return parser->head;
 }
 
