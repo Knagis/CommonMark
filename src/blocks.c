@@ -1150,11 +1150,8 @@ static void process_line(doc_parser *parser, unsigned char *rawline)
 		}
 
 		parser->current = container;
-		strbuf_free(line);
 	}
-
-
-
+	strbuf_free(line);
 }
 
 static node_block *finish(doc_parser *parser)
